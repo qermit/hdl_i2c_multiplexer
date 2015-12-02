@@ -1,4 +1,43 @@
-
+--==============================================================================
+-- GSI
+-- I2C multoplexer core
+--==============================================================================
+--
+-- author: Piotr Miedzik (P.Miedzik@gsi.de)
+--
+-- date of creation: 2015-12-02
+--
+-- version: 1.0
+--
+-- description:
+--
+-- dependencies:
+--
+-- references:
+--    [1] The I2C bus specification, version 2.1, NXP Semiconductor, Jan. 2000
+--        http://www.nxp.com/documents/other/39340011.pdf
+--    [2] PCA9547BS - 8-channel I2C-bus multiplexer with reset
+--        http://www.nxp.com/documents/data_sheet/PCA9547.pdf
+--
+--==============================================================================
+-- GNU LESSER GENERAL PUBLIC LICENSE
+--==============================================================================
+-- This source file is free software; you can redistribute it and/or modify it
+-- under the terms of the GNU Lesser General Public License as published by the
+-- Free Software Foundation; either version 2.1 of the License, or (at your
+-- option) any later version. This source is distributed in the hope that it
+-- will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+-- of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+-- See the GNU Lesser General Public License for more details. You should have
+-- received a copy of the GNU Lesser General Public License along with this
+-- source; if not, download it from http://www.gnu.org/licenses/lgpl-2.1.html
+--==============================================================================
+-- last changes:
+--    2015-12-02   Piotr Miedzik      File created
+--==============================================================================
+-- TODO:
+--    - description
+--==============================================================================
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -64,6 +103,7 @@ begin
 		port map(
 			clk_i           => clk,
 			rst_i           => rst_i,
+			channel_enabled_i => '1',
 			m_scl_io        => m_scl_io,
 			m_sda_io        => m_sda_io,
 			m_sda_i         => '1',

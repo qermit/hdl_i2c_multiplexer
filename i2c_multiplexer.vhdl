@@ -1,3 +1,46 @@
+--==============================================================================
+-- GSI
+-- I2C multoplexer core
+--==============================================================================
+--
+-- author: Piotr Miedzik (P.Miedzik@gsi.de)
+--
+-- date of creation: 2015-12-02
+--
+-- version: 1.0
+--
+-- description:
+--
+-- dependencies:
+--
+-- references:
+--    [1] The I2C bus specification, version 2.1, NXP Semiconductor, Jan. 2000
+--        http://www.nxp.com/documents/other/39340011.pdf
+--    [2] PCA9547BS - 8-channel I2C-bus multiplexer with reset
+--        http://www.nxp.com/documents/data_sheet/PCA9547.pdf
+--
+--==============================================================================
+-- GNU LESSER GENERAL PUBLIC LICENSE
+--==============================================================================
+-- This source file is free software; you can redistribute it and/or modify it
+-- under the terms of the GNU Lesser General Public License as published by the
+-- Free Software Foundation; either version 2.1 of the License, or (at your
+-- option) any later version. This source is distributed in the hope that it
+-- will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+-- of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+-- See the GNU Lesser General Public License for more details. You should have
+-- received a copy of the GNU Lesser General Public License along with this
+-- source; if not, download it from http://www.gnu.org/licenses/lgpl-2.1.html
+--==============================================================================
+-- last changes:
+--    2015-12-02   Piotr Miedzik      File created
+--==============================================================================
+-- TODO:
+--    - description
+--==============================================================================
+
+
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
@@ -11,7 +54,8 @@ entity i2c_multiplexer is
 	generic(
 		CLK_FREQ       : natural := 125000000;
 		g_use_tristate : boolean := true;
-		g_slave_count  : natural := 4
+		g_slave_count  : natural := 4;
+		g_chip_address : std_logic_vector(7 downto 0) := x"E0"
 	);
 	Port(clk_i         : in    STD_LOGIC;
 		 rst_i         : in    STD_LOGIC;
@@ -19,8 +63,8 @@ entity i2c_multiplexer is
 		 slave_scl_io  : inout STD_LOGIC_VECTOR(g_slave_count downto 0);
 		 slave_sda_io  : inout STD_LOGIC_VECTOR(g_slave_count downto 0);
 
-		 slave_scl_i   : in    STD_LOGIC_VECTOR(g_slave_count downto 0);
-		 slave_sda_i   : in    STD_LOGIC_VECTOR(g_slave_count downto 0);
+		 slave_scl_i   : in    STD_LOGIC_VECTOR(g_slave_count downto 0) := (others => '1');
+		 slave_sda_i   : in    STD_LOGIC_VECTOR(g_slave_count downto 0) := (others => '1');
 		 slave_scl_o   : out   STD_LOGIC_VECTOR(g_slave_count downto 0);
 		 slave_sda_o   : out   STD_LOGIC_VECTOR(g_slave_count downto 0);
 		 slave_scl_dir : out   STD_LOGIC_VECTOR(g_slave_count downto 0);
@@ -37,75 +81,6 @@ architecture Behavioral of i2c_multiplexer is
 	signal s_scl_dir : STD_LOGIC_VECTOR(g_slave_count downto 0);
 	signal s_sda_dir : STD_LOGIC_VECTOR(g_slave_count downto 0);
 
-	signal r_channels_active : std_logic_vector(g_slave_count - 1 downto 0);
-	-- components
-
-	component i2c_multiplexer_filter
-		generic(g_use_tristate : boolean := true;
-			    g_use_filter   : boolean := true);
-		port(clk_i           : in    std_logic;
-			 rst_i           : in    std_logic;
-			 m_scl_io        : inout STD_LOGIC;
-			 m_sda_io        : inout STD_LOGIC;
-			 m_sda_i         : in    STD_LOGIC;
-			 m_scl_i         : in    STD_LOGIC;
-			 m_sda_o         : out   STD_LOGIC;
-			 m_scl_o         : out   STD_LOGIC;
-			 m_sda_dir       : out   std_logic;
-			 m_scl_dir       : out   std_logic;
-			 slave_scl_in_o  : out   STD_LOGIC;
-			 slave_sda_in_o  : out   STD_LOGIC;
-			 slave_scl_out_i : in    STD_LOGIC;
-			 slave_sda_out_i : in    STD_LOGIC;
-			 slave_scl_dir_i : in    STD_LOGIC;
-			 slave_sda_dir_i : in    STD_LOGIC;
-			 i2c_start       : out   std_logic;
-			 i2c_stop        : out   std_logic;
-			 i2c_scl_raise   : out   std_logic;
-			 i2c_scl_fall    : out   std_logic);
-	end component i2c_multiplexer_filter;
-
-	component i2c_multiplexer_crossbar
-		generic(g_slave_count : natural := 4);
-		port(clk_i            : in  std_logic;
-			 rst_i            : in  std_logic;
-			 scl_i            : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 sda_i            : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 scl_o            : out STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 sda_o            : out STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 scl_dir_o        : out STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 sda_dir_o        : out STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 i2c_start_i      : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 i2c_stop_i       : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 i2c_scl_raise_i  : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-			 i2c_scl_fall_i   : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
-
-			 i2c_ack_req_o    : out std_logic;
-			 i2c_ack_i        : in  std_logic;
-			 i2c_chip_addr_o  : out std_logic_vector(7 downto 0);
-			 i2c_valid_data_o : out std_logic;
-			 i2c_data_o       : out std_logic_vector(7 downto 0);
-			 i2c_data_i       : in  std_logic_vector(7 downto 0));
-	end component i2c_multiplexer_crossbar;
-	
-	component i2c_multiplexer_ctl
-		generic(g_slave_count  : natural                      := 4;
-			    g_chip_address : std_logic_vector(7 downto 0) := x"E0");
-		port(clk_i                 : in  std_logic;
-			 rst_i                 : in  std_logic;
-			 transfer_start_i      : in  std_logic;
-			 transfer_stop_i       : in  std_logic;
-			 chip_addres_i         : in  std_logic_vector(7 downto 0);
-			 ack_req_i             : in  std_logic;
-			 ack_req_o             : out std_logic;
-			 data_valid_i          : in  std_logic;
-			 data_in_i             : in  std_logic_vector(7 downto 0);
-			 data_out_o            : out std_logic_vector(7 downto 0);
-			 channel_disable_req_o : out std_logic_vector(g_slave_count - 1 downto 0);
-			 channel_enable_req_o  : out std_logic_vector(g_slave_count - 1 downto 0);
-			 channel_enabled_i     : in  std_logic_vector(g_slave_count downto 0));
-	end component i2c_multiplexer_ctl;
-
 	signal i2c_stop_i      : STD_LOGIC_VECTOR(g_slave_count downto 0);
 	signal i2c_start_i     : STD_LOGIC_VECTOR(g_slave_count downto 0);
 	signal i2c_scl_raise_i : STD_LOGIC_VECTOR(g_slave_count downto 0);
@@ -118,6 +93,10 @@ architecture Behavioral of i2c_multiplexer is
 	signal data_valid_i : std_logic;
 	signal data_in_i : std_logic_vector(7 downto 0);
 	signal data_out_o : std_logic_vector(7 downto 0);
+	signal chip_address_valid : std_logic;
+	signal s_channels_enabled : std_logic_vector(g_slave_count downto 0);
+	signal transfer_stop : std_logic;
+	signal transfer_start : std_logic;
 
 begin
 	GEN_I2C_SLAVE : for i in 0 to g_slave_count generate
@@ -129,6 +108,7 @@ begin
 			port map(
 				clk_i           => clk_i,
 				rst_i           => rst_i,
+				channel_enabled_i => s_channels_enabled(i),
 				m_scl_io        => slave_scl_io(i),
 				m_sda_io        => slave_sda_io(i),
 				m_sda_i         => slave_sda_i(i),
@@ -157,6 +137,7 @@ begin
 		port map(
 			clk_i            => clk_i,
 			rst_i            => rst_i,
+			channels_enbabled_i => s_channels_enabled,
 			scl_i            => s_scl_i,
 			sda_i            => s_sda_i,
 			scl_o            => s_scl_o,
@@ -168,43 +149,38 @@ begin
 			i2c_scl_raise_i  => i2c_scl_raise_i,
 			i2c_scl_fall_i   => i2c_scl_fall_i,
 			
+			i2c_transfer_stop_o => transfer_stop,
+			i2c_transfer_start_o => transfer_start,
 			i2c_ack_i        => ack_req_o,
 			i2c_ack_req_o    => ack_req_i,
 			i2c_data_i       => data_out_o,
 			i2c_data_o       => data_in_i,
 			i2c_chip_addr_o  => chip_addres_i,
+			i2c_chip_addr_valid_o => chip_address_valid,
 			i2c_valid_data_o => data_valid_i
 		);
 
 	inst_i2c_ctrl: i2c_multiplexer_ctl
 		generic map(
 			g_slave_count  => g_slave_count,
-			g_chip_address => x"E0"
+			g_chip_address => g_chip_address
 		)
 		port map(
 			clk_i                 => clk_i,
 			rst_i                 => rst_i,
-			transfer_start_i      => '0',
-			transfer_stop_i       => '0',
+			transfer_start_i      => transfer_start,
+			transfer_stop_i       => transfer_stop,
 			chip_addres_i         => chip_addres_i,
+			chip_address_valid_i  => chip_address_valid,
 			ack_req_i             => ack_req_i,
 			ack_req_o             => ack_req_o,
 			data_valid_i          => data_valid_i,
 			data_in_i             => data_in_i,
 			data_out_o            => data_out_o,
 			
-			channel_disable_req_o => open,
-			channel_enable_req_o  => open,
-			channel_enabled_i     => (others => '1')
+			channel_enabled_o => s_channels_enabled(g_slave_count-1 downto 0)
 		);
---s_scl_o(g_slave_count) <= and_reduct(s_scl_i(g_slave_count-1 downto 0));
---s_sda_o(g_slave_count) <= and_reduct(s_sda_i(g_slave_count-1 downto 0));
---
---GEN_I2C_SLAVE2 : for i in 0 to g_slave_count-1 generate
---	s_scl_o(i) <= s_scl_i(g_slave_count) or not r_channels_active(i);
---	s_sda_o(i) <= s_sda_i(g_slave_count) or not r_channels_active(i);
---end generate GEN_I2C_SLAVE2;
-
+		s_channels_enabled(g_slave_count) <= '1';
 
 end architecture;
 

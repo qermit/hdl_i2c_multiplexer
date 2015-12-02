@@ -1,3 +1,44 @@
+--==============================================================================
+-- GSI
+-- I2C multoplexer core
+--==============================================================================
+--
+-- author: Piotr Miedzik (P.Miedzik@gsi.de)
+--
+-- date of creation: 2015-12-02
+--
+-- version: 1.0
+--
+-- description:
+--
+-- dependencies:
+--
+-- references:
+--    [1] The I2C bus specification, version 2.1, NXP Semiconductor, Jan. 2000
+--        http://www.nxp.com/documents/other/39340011.pdf
+--    [2] PCA9547BS - 8-channel I2C-bus multiplexer with reset
+--        http://www.nxp.com/documents/data_sheet/PCA9547.pdf
+--
+--==============================================================================
+-- GNU LESSER GENERAL PUBLIC LICENSE
+--==============================================================================
+-- This source file is free software; you can redistribute it and/or modify it
+-- under the terms of the GNU Lesser General Public License as published by the
+-- Free Software Foundation; either version 2.1 of the License, or (at your
+-- option) any later version. This source is distributed in the hope that it
+-- will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+-- of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+-- See the GNU Lesser General Public License for more details. You should have
+-- received a copy of the GNU Lesser General Public License along with this
+-- source; if not, download it from http://www.gnu.org/licenses/lgpl-2.1.html
+--==============================================================================
+-- last changes:
+--    2015-12-02   Piotr Miedzik      File created
+--==============================================================================
+-- TODO:
+--    - description
+--==============================================================================
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -11,6 +52,8 @@ entity i2c_multiplexer_crossbar is
 		clk_i            : in  std_logic;
 		rst_i            : in  std_logic;
 
+		channels_enbabled_i : in std_logic_vector(g_slave_count downto 0);
+
 		scl_i            : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
 		sda_i            : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
 		scl_o            : out STD_LOGIC_VECTOR(g_slave_count downto 0);
@@ -23,9 +66,12 @@ entity i2c_multiplexer_crossbar is
 		i2c_scl_raise_i  : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
 		i2c_scl_fall_i   : in  STD_LOGIC_VECTOR(g_slave_count downto 0);
 
+		i2c_transfer_start_o :out std_logic;
+		i2c_transfer_stop_o :out std_logic;
 		i2c_ack_req_o    : out std_logic;
 		i2c_ack_i        : in  std_logic;
 		i2c_chip_addr_o  : out std_logic_vector(7 downto 0);
+		i2c_chip_addr_valid_o : out std_logic; 
 		i2c_valid_data_o : out std_logic;
 		i2c_data_o       : out std_logic_vector(7 downto 0);
 		i2c_data_i       : in  std_logic_vector(7 downto 0)
@@ -39,11 +85,8 @@ architecture RTL of i2c_multiplexer_crossbar is
 	signal r_current_slave  : std_logic_vector(g_slave_count downto 0);
 	signal r_current_busy   : std_logic_vector(g_slave_count - 1 downto 0);
 
-	signal r_current_enabled : std_logic_vector(g_slave_count downto 0)     := "11";
-	signal r_req_enable      : std_logic_vector(g_slave_count - 1 downto 0) := (others => '0');
-	signal r_req_disable     : std_logic_vector(g_slave_count - 1 downto 0) := (others => '0');
-	signal s_req_enable      : std_logic_vector(g_slave_count - 1 downto 0) := (others => '0');
-	signal s_req_disable     : std_logic_vector(g_slave_count - 1 downto 0) := (others => '0');
+	signal s_current_enabled : std_logic_vector(g_slave_count downto 0);
+
 
 	signal s_scl_and_enable   : std_logic_vector(g_slave_count downto 0);
 	signal s_sda_and_enable   : std_logic_vector(g_slave_count downto 0);
@@ -120,7 +163,7 @@ begin
 				if (rst_i = '1') then
 					r_current_busy(i) <= '0';
 				else
-					if r_current_enabled(i) = '0' then
+					if s_current_enabled(i) = '0' then
 						if i2c_start_i(i) = '1' then
 							r_current_busy(i) <= '1';
 						end if;
@@ -130,37 +173,8 @@ begin
 		end process;
 	end generate GEN_BUSY;
 
-	GEN_ENABLE_DISABLE : for i in 0 to g_slave_count - 1 generate
-		process(clk_i)
-		begin
-			if rising_edge(clk_i) then
-				if (rst_i = '1') then
-					r_current_enabled(i) <= '1';
-				else
-					if s_req_enable(i) = '1' or r_req_enable(i) = '1' then
-						if r_current_busy(i) = '1' then
-							r_req_enable(i)  <= '1';
-							r_req_disable(i) <= '0';
-						else
-							r_req_enable(i)      <= '0';
-							r_req_disable(i)     <= '0';
-							r_current_enabled(i) <= '1';
-						end if;
-					elsif s_req_disable(i) = '1' or r_req_disable(i) = '1' then
-						if r_current_busy(i) = '1' then
-							r_req_enable(i)  <= '0';
-							r_req_disable(i) <= '1';
-						else
-							r_req_enable(i)      <= '0';
-							r_req_disable(i)     <= '0';
-							r_current_enabled(i) <= '0';
-						end if;
-					end if;
-				end if;
-			end if;
-		end process;
-	end generate GEN_ENABLE_DISABLE;
-	r_current_enabled(g_slave_count) <= '1';
+	s_current_enabled <= channels_enbabled_i;
+	
 
 	s_master_scl_raise <= or_reduct(i2c_scl_raise_i and r_current_master);
 	s_master_scl_fall  <= or_reduct(i2c_scl_fall_i and r_current_master);
@@ -174,6 +188,9 @@ begin
 	s_sda <= s_slave_sda when  r_counter = 0 else
 			 s_master_sda;
 	
+	
+	i2c_transfer_start_o <= s_master_start;
+	i2c_transfer_stop_o <= s_master_stop;
 	--s_start_and_enable <= i2c_start_i and '1' & r_current_enabled(g_slave_count - 1 downto 0);
 
 	--s_scl_and_enable <= scl_i(g_slave_count downto 0) or not r_current_enabled(g_slave_count downto 0);
@@ -183,8 +200,8 @@ begin
 	--sda_o(g_slave_count) <= and_reduct(s_sda_and_enable(g_slave_count - 1 downto 0));
 
 	GEN_SDA_SCL : for i in 0 to g_slave_count generate
-		scl_o(i) <= s_master_scl or not r_current_enabled(i);
-		sda_o(i) <= s_sda or not r_current_enabled(i);
+		scl_o(i) <= s_master_scl or not s_current_enabled(i);
+		sda_o(i) <= s_sda or not s_current_enabled(i);
 	end generate GEN_SDA_SCL;
 	
 	
@@ -225,10 +242,14 @@ begin
 				r_ack      <= '0';
 				r_first_byte <= '1';
 				r_address <= (others => '0');
+				i2c_chip_addr_valid_o <= '0';
 			else
+				i2c_valid_data_o <= '0';
+				i2c_chip_addr_valid_o <= '0';
 				if s_master_scl_raise = '1' then
 					if r_counter = 1 then
 						if r_first_byte = '1' then
+							i2c_chip_addr_valid_o <= '1';
 							r_address <= r_data_tmp(6 downto 0) & s_master_sda;
 						else
 							r_data <= r_data_tmp(6 downto 0) & s_master_sda;
@@ -241,9 +262,6 @@ begin
 					else
 						r_data_tmp <= r_data_tmp(6 downto 0) & s_master_sda;
 					end if;
-
-				else
-					i2c_valid_data_o <= '0';
 				end if;
 
 			end if;

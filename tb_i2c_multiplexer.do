@@ -30,11 +30,13 @@ add wave -noupdate -position end -label m_scl_fall sim:/tb_i2c_multiplexer/dut_i
 
 }
 
-if { 0 } {
+if { 1 } {
 add wave -noupdate -divider -height 16 "I2C SLAVE"
 
 add wave -noupdate -position end -label s_sda_io  sim:/tb_i2c_multiplexer/slave_sda_io(0)
 add wave -noupdate -position end -label s_scl_io  sim:/tb_i2c_multiplexer/slave_scl_io(0)
+
+add wave -noupdate -position end -label channel_enabled  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/s_channels_enabled(0)
 
 add wave -noupdate -position end -label s_sda_o  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/s_sda_o(0)
 add wave -noupdate -position end -label s_scl_o  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/s_scl_o(0)
@@ -62,11 +64,7 @@ add wave -noupdate -position end -label r_idle  sim:/tb_i2c_multiplexer/dut_i2c_
 add wave -noupdate -position end -label r_current_master  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_current_master
 add wave -noupdate -position end -label r_current_slave  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_current_slave
 add wave -noupdate -position end -label r_current_busy  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_current_busy
-add wave -noupdate -position end -label r_current_enabled  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_current_enabled
-add wave -noupdate -position end -label r_req_enable  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_req_enable
-add wave -noupdate -position end -label r_req_disable  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/r_req_disable
-add wave -noupdate -position end -label s_req_enable  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/s_req_enable
-add wave -noupdate -position end -label s_req_disable  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/s_req_disable
+add wave -noupdate -position end -label r_current_enabled  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/s_current_enabled
 
 add wave -noupdate -position end -label s_master_scl_raise  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/s_master_scl_raise
 add wave -noupdate -position end -label s_master_scl_fall  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_crossbar/s_master_scl_fall
@@ -88,11 +86,14 @@ add wave -noupdate -position end -label r_ack_out  sim:/tb_i2c_multiplexer/dut_i
 add wave -noupdate -position end -label data_valid_i  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_ctrl/data_valid_i
 add wave -noupdate -position end -label data_in_i  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_ctrl/data_in_i
 add wave -noupdate -position end -label data_out_o  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_ctrl/data_out_o
+add wave -noupdate -position end -label r_control_register  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_ctrl/r_control_register
+add wave -noupdate -position end -label chip_address_valid_i  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/inst_i2c_ctrl/chip_address_valid_i
 
+add wave -noupdate -position end -label s_channels_enabled  sim:/tb_i2c_multiplexer/dut_i2c_multiplexer/s_channels_enabled;
 }
 
 if { 1 } {
-set RunLength 6500ns
+set RunLength 9500ns
 run
 wave zoom full
 }
